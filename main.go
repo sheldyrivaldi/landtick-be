@@ -22,11 +22,13 @@ func main() {
 
 	e := echo.New()
 
+	e.Static("/uploads", "./uploads")
+
 	e.GET("/api/v1", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello, World!")
 	})
 
 	routes.RouteInit(e.Group("/api/v1"))
 
-	e.Logger.Fatal(e.Start(":5000"))
+	e.Logger.Fatal(e.Start(":8000"))
 }

@@ -1,19 +1,214 @@
 package handlers
 
 import (
+	"fmt"
+	resultdto "landtick/dto/result"
+	ticketdto "landtick/dto/ticket"
+	transactiondto "landtick/dto/transaction"
 	"landtick/models"
-	"landtick/pkg/mysql"
+	"landtick/repositories"
 	"net/http"
+	"strconv"
+	"time"
 
+	"github.com/go-playground/validator"
+	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 )
 
-func GetTicket(c echo.Context) error {
-	var ticket []models.Ticket
-	err := mysql.DB.Preload("users").Find(&ticket).Error
+type handlerTicket struct {
+	TicketRepositories repositories.TicketRepositories
+}
 
+func HandlerTicket(TicketRepositories repositories.TicketRepositories) *handlerTicket {
+	return &handlerTicket{TicketRepositories}
+}
+
+func (h *handlerTicket) FindTickets(c echo.Context) error {
+	tickets, err := h.TicketRepositories.FindTickets()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err.Error())
+		return c.JSON(http.StatusInternalServerError, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
 	}
-	return c.JSON(http.StatusOK, ticket)
+
+	response := make([]ticketdto.TicketResponseDTOGet, len(tickets))
+	for i, t := range tickets {
+		response[i] = convertResponseTicketGet(t)
+	}
+
+	return c.JSON(http.StatusOK, resultdto.SuccessResult{
+		Status: "Success",
+		Data:   response,
+	})
+}
+
+func (h *handlerTicket) SearchTickets(c echo.Context) error {
+	date := c.QueryParam("date")
+	startStationQuery := c.QueryParam("startStation")
+	destinationStationQuery := c.QueryParam("destinationStation")
+
+	fmt.Println(date)
+
+	startStation, err := h.TicketRepositories.GetStationByName(startStationQuery)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
+	}
+
+	destinationStation, err := h.TicketRepositories.GetStationByName(destinationStationQuery)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
+	}
+
+	tickets, err := h.TicketRepositories.SearchTickets(date, startStation.ID, destinationStation.ID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, resultdto.ErrorResult{Status: "Failed", Message: "Error 1"})
+	}
+
+	response := make([]ticketdto.TicketResponseDTOGet, len(tickets))
+	for i, t := range tickets {
+		response[i] = convertResponseTicketGet(t)
+	}
+
+	return c.JSON(http.StatusOK, resultdto.SuccessResult{
+		Status: "Success",
+		Data:   response,
+	})
+}
+
+func (h *handlerTicket) GetTicket(c echo.Context) error {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
+	}
+
+	ticket, err := h.TicketRepositories.GetTicket(id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, resultdto.SuccessResult{
+		Status: "Success",
+		Data:   convertResponseTicketGet(ticket),
+	})
+}
+
+func (h *handlerTicket) CreateTicket(c echo.Context) error {
+	request := new(ticketdto.CreateTicketRequestDTO)
+
+	err := c.Bind(&request)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
+	}
+
+	fmt.Println(&request)
+
+	validation := validator.New()
+
+	validationErr := validation.Struct(request)
+	if validationErr != nil {
+		return c.JSON(http.StatusBadRequest, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
+	}
+
+	parseStartDate, err := time.Parse("2006-01-02", request.StartDate)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
+	}
+
+	parseStartTime, err := time.Parse("15:04", request.StartTime)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
+	}
+
+	parseArrivalTime, err := time.Parse("15:04", request.ArrivalTime)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
+	}
+
+	newTicket := models.Ticket{
+		NameTrain:            request.NameTrain,
+		TypeTrain:            request.TypeTrain,
+		StartDate:            parseStartDate,
+		StartTime:            time.Date(1, 1, 1, parseStartTime.Hour(), parseStartTime.Minute(), 0, 0, time.Local),
+		ArrivalTime:          time.Date(1, 1, 1, parseArrivalTime.Hour(), parseArrivalTime.Minute(), 0, 0, time.Local),
+		StartStationID:       request.StartStationID,
+		DestinationStationID: request.DestinationStationID,
+		Price:                request.Price,
+		Qty:                  request.Qty,
+	}
+
+	data, err := h.TicketRepositories.CreateTicket(newTicket)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, resultdto.ErrorResult{Status: "Failed", Message: "EROR BOS"})
+	}
+
+	return c.JSON(http.StatusOK, resultdto.SuccessResult{
+		Status: "Success",
+		Data:   convertResponseTicketCreate(data),
+	})
+}
+
+func (h *handlerTicket) GetMyTicket(c echo.Context) error {
+	claims := c.Get("userLogin")
+	id := claims.(jwt.MapClaims)["id"].(float64)
+	userID := int(id)
+
+	ticket, err := h.TicketRepositories.GetMyTicket(userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, resultdto.SuccessResult{
+		Status: "Success",
+		Data:   convertResponseMyTicketTransaction(ticket),
+	})
+
+}
+
+func convertResponseTicketCreate(t models.Ticket) ticketdto.TicketResponseDTOCreate {
+	return ticketdto.TicketResponseDTOCreate{
+		ID:                   t.ID,
+		NameTrain:            t.NameTrain,
+		TypeTrain:            t.TypeTrain,
+		StartDate:            t.StartDate.Format("02-01-2006"),
+		StartStationID:       t.StartStationID,
+		StartTime:            t.StartTime.Format("15:04"),
+		DestinationStationID: t.DestinationStationID,
+		ArrivalTime:          t.ArrivalTime.Format("15:04"),
+		Price:                t.Price,
+		Qty:                  t.Qty,
+	}
+}
+
+func convertResponseTicketGet(t models.Ticket) ticketdto.TicketResponseDTOGet {
+	return ticketdto.TicketResponseDTOGet{
+		ID:                 t.ID,
+		NameTrain:          t.NameTrain,
+		TypeTrain:          t.TypeTrain,
+		StartDate:          t.StartDate.Format("02-01-2006"),
+		StartStation:       t.StartStation,
+		StartTime:          t.StartTime.Format("15:04"),
+		DestinationStation: t.DestinationStation,
+		ArrivalTime:        t.ArrivalTime.Format("15:04"),
+		Price:              t.Price,
+	}
+}
+
+func convertResponseMyTicket(t models.TicketResponseModels) ticketdto.TicketResponseDTOGet {
+	return ticketdto.TicketResponseDTOGet{
+		ID:                 t.ID,
+		NameTrain:          t.NameTrain,
+		TypeTrain:          t.TypeTrain,
+		StartDate:          t.StartDate.Format("02-01-2006"),
+		StartStation:       t.StartStation,
+		StartTime:          t.StartTime.Format("15:04"),
+		DestinationStation: t.DestinationStation,
+		ArrivalTime:        t.ArrivalTime.Format("15:04"),
+		Price:              t.Price,
+	}
+}
+
+func convertResponseMyTicketTransaction(t models.MyTicketTransaction) transactiondto.TransactionTicketResponse {
+	return transactiondto.TransactionTicketResponse{
+		Ticket: convertResponseMyTicket(t.Ticket),
+		User:   t.User,
+	}
 }

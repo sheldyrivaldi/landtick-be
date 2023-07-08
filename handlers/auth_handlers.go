@@ -56,6 +56,9 @@ func (h *handlerAuth) Login(c echo.Context) error {
 
 	claims := jwt.MapClaims{}
 	claims["id"] = user.ID
+	claims["fullName"] = user.Fullname
+	claims["telp"] = user.Telp
+	claims["email"] = user.Email
 	claims["exp"] = time.Now().Add(time.Hour * 12).Unix()
 
 	token, err := jwtToken.GenerateToken(&claims)
@@ -107,6 +110,9 @@ func (h *handlerAuth) Register(c echo.Context) error {
 		Username: request.Username,
 		Email:    request.Email,
 		Password: hashPassword,
+		Gender:   request.Gender,
+		Telp:     request.Telp,
+		Address:  request.Address,
 	}
 
 	data, err := h.AuthRepositories.Register(newUser)
