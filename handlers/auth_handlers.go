@@ -70,7 +70,6 @@ func (h *handlerAuth) Login(c echo.Context) error {
 		Fullname: user.Fullname,
 		Username: user.Username,
 		Email:    user.Email,
-		Password: user.Password,
 		Token:    token,
 	}
 
