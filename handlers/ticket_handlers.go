@@ -96,7 +96,7 @@ func (h *handlerTicket) CreateTicket(c echo.Context) error {
 
 	err := c.Bind(&request)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, resultdto.ErrorResult{Status: "Failed", Message: err.Error()})
+		return c.JSON(http.StatusBadRequest, resultdto.ErrorResult{Status: "Failed", Message: "Error disini!"})
 	}
 
 	fmt.Println(&request)

@@ -35,7 +35,7 @@ type TicketResponseModels struct {
 }
 
 type TicketResponseModelsTransaction struct {
-	ID                   int                   `json:"id"`
+	ID                   int                   `json:"-"`
 	NameTrain            string                `json:"name_train" validate:"required"`
 	TypeTrain            string                `json:"type_train" validate:"required"`
 	StartDate            string                `json:"start_date" validate:"required"`

@@ -90,7 +90,7 @@ func (h *handlerTransaction) CreateTransaction(c echo.Context) error {
 	return c.JSON(http.StatusOK, resultdto.SuccessResult{
 		Status: "Success",
 		Data: dataTrsansaction{
-			Transaction: data,
+			Transaction: convertResponseTransactionGet(data),
 		},
 	})
 }

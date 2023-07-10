@@ -26,7 +26,7 @@ type UserResponseModelsTicket struct {
 }
 
 type UserResponseModelsTransaction struct {
-	ID       int    `json:"id" form:"id"`
+	ID       int    `json:"-" form:"-"`
 	Fullname string `json:"fullname" form:"fullname"`
 	Telp     string `json:"no_hp" form:"no_hp"`
 	Email    string `json:"email" form:"email"`

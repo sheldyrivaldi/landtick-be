@@ -10,7 +10,6 @@ type CreateTicketRequestDTO struct {
 	DestinationStationID int    `json:"destination_station_id" `
 	Price                int    `json:"price"`
 	Qty                  int    `json:"qty"`
-	UserID               int    `json:"user_id"`
 }
 
 type UpdateTicketRequestDTO struct {
@@ -23,5 +22,4 @@ type UpdateTicketRequestDTO struct {
 	DestinationStationID int    `json:"destination_station_id" `
 	Price                int    `json:"price"`
 	Qty                  int    `json:"qty"`
-	UserID               int    `json:"user_id"`
 }

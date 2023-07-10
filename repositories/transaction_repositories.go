@@ -35,9 +35,10 @@ func (r repository) GetTransaction(ID int) (models.Transaction, error) {
 }
 
 func (r repository) CreateTransaction(transaction models.Transaction) (models.Transaction, error) {
-	err := r.db.Create(&transaction).Error
+	var data models.Transaction
+	err := r.db.Create(&transaction).Where("user_id = ? AND ticket_id = ?", transaction.UserID, transaction.TicketID).Order("id DESC").Preload("User").Preload("Ticket").Preload("Ticket.StartStation").Preload("Ticket.DestinationStation").First(&data).Error
 
-	return transaction, err
+	return data, err
 }
 
 func (r repository) UpdateTransaction(transaction models.Transaction) (models.Transaction, error) {
